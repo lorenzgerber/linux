@@ -1,0 +1,4 @@
+config MYSERVICE
+       bool "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+       default y
+       
