@@ -1,0 +1,3 @@
+config HELLOWORLD
+       bool "HELLOWORLD"
+       default y
