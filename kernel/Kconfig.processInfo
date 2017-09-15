@@ -1,0 +1,3 @@
+config PROCESSINFO
+       bool "PROCESSINFO"
+       default y

@@ -2129,3 +2129,4 @@ config ASN1
 
 source "kernel/Kconfig.locks"
 source "kernel/Kconfig.helloworld"
+source "kernel/Kconfig.processInfo"
