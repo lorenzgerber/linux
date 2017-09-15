@@ -4,6 +4,7 @@
 #include<linux/syscalls.h>
 #include<linux/fdtable.h>
 #include <linux/processInfo.h>
+#include <linux/signal.h>
 
 asmlinkage long sys_processInfo(void) {
 
@@ -11,20 +12,30 @@ asmlinkage long sys_processInfo(void) {
     int processes = 0;
     int fd = 0;
     int pending = 0;
+    int bitmask;
+
+    printk("My user Id: %ld\n", sys_getuid());
 
     for_each_process(proces) {
  	
-	if(__kuid_val(task_uid(proces)) == (uid_t)sys_getuid()){
-		pending = pending + proces->signal->sigcnt.counter;
-		fd = fd + proces->files->count.counter;
-		processes++;
-		
+		if(__kuid_val(task_uid(proces)) == (uid_t)sys_getuid()){
+			//pending = pending + proces->signal->sigcnt.counter;
+			fd = fd + proces->files->count.counter;
+			processes++;
+			bitmask = *proces->pending.signal.sig;
+
+
+			while (bitmask > 0) {           // until all bits are zero
+				if ((bitmask & 1) == 1)     // check lower bit
+					pending++;
+				bitmask >>= 1;              // shift bits, removing lower bit
+			}
+
+		}
+
 	}
 	
-	
-	
-    }
-    printk("\nThe current user has:\n%d processes running\n%dfiledescriptors watched\n%dsignals pendning\n", processes, fd, pending);
+    printk("\nThe current user has:\n%d processes running\n%d filedescriptors watched\n%d signals pendning\n", processes, fd, pending);
 	   
   
    
