@@ -3,8 +3,7 @@
 #include<linux/sched.h>
 #include<linux/syscalls.h>
 #include<linux/fdtable.h>
-
-#include "processInfo.h"
+#include <linux/processInfo.h>
 
 asmlinkage long sys_processInfo(void) {
 
@@ -15,12 +14,12 @@ asmlinkage long sys_processInfo(void) {
 
     for_each_process(proces) {
  	
-	//if(proces->parent->uid == (unsigned short)sys_getuid()){
+	if(__kuid_val(task_uid(proces)) == (uid_t)sys_getuid()){
 		pending = pending + proces->signal->sigcnt.counter;
 		fd = fd + proces->files->count.counter;
 		processes++;
 		
-	//}
+	}
 	
 	
 	
