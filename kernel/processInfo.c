@@ -19,8 +19,8 @@ asmlinkage long sys_processInfo(void) {
     for_each_process(proces) {
  	
 		if(__kuid_val(task_uid(proces)) == (uid_t)sys_getuid()){
-			//pending = pending + proces->signal->sigcnt.counter;
-			fd = fd + proces->files->count.counter;
+
+			fd = fd + *proces->files->fdtab.open_fds;
 			processes++;
 			bitmask = *proces->pending.signal.sig;
 
@@ -30,7 +30,6 @@ asmlinkage long sys_processInfo(void) {
 					pending++;
 				bitmask >>= 1;              // shift bits, removing lower bit
 			}
-
 		}
 
 	}
