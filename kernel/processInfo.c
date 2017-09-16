@@ -1,12 +1,12 @@
-#include<linux/kernel.h>
-#include<linux/init.h>
-#include<linux/sched.h>
-#include<linux/syscalls.h>
-#include<linux/fdtable.h>
+#include <linux/kernel.h>
+#include <linux/init.h>
+#include <linux/sched.h>
+#include <linux/syscalls.h>
+#include <linux/fdtable.h>
 #include <linux/processInfo.h>
 #include <linux/signal.h>
 
-asmlinkage long sys_processInfo(void) {
+SYSCALL_DEFINE2(processInfo, int*, buf, int, size) {
 
     struct task_struct *proces;
     int processes = 0;
@@ -15,7 +15,12 @@ asmlinkage long sys_processInfo(void) {
     int bitmaskShared;
     int bitmaskPrivate;
 
-    printk("My user Id: %ld\n", sys_getuid());
+
+    int buffers_in_kernel[size];
+	//int *user_pointers[size];
+	//int i;
+	//unsigned long res;
+
 
     for_each_process(proces) {
  	
@@ -32,6 +37,16 @@ asmlinkage long sys_processInfo(void) {
 		}
 
 	}
+
+    buffers_in_kernel[0] = processes;
+    buffers_in_kernel[1] = fd;
+    buffers_in_kernel[2] = pending;
+    /*
+    res = copy_from_user(user_pointers, buf, sizeof(user_pointers[size]));
+
+	for (i = 0; i < size; i++) {
+		 res = copy_to_user(user_pointers[i], &buffers_in_kernel[i], sizeof(int));
+	}*/
 	
     printk("\nThe current user has:\n%d processes running\n%d filedescriptors watched\n%d signals pendning\n", processes, fd, pending);
 	   
