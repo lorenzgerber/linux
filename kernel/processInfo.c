@@ -12,7 +12,8 @@ asmlinkage long sys_processInfo(void) {
     int processes = 0;
     int fd = 0;
     int pending = 0;
-    int bitmask;
+    int bitmaskShared;
+    int bitmaskPrivate;
 
     printk("My user Id: %ld\n", sys_getuid());
 
@@ -22,36 +23,31 @@ asmlinkage long sys_processInfo(void) {
 
 			fd = fd + *proces->files->fdtab.open_fds;
 			processes++;
-			bitmask = *proces->pending.signal.sig;
+			bitmaskShared = *proces->signal->shared_pending.signal.sig;
+			bitmaskPrivate = *proces->pending.signal.sig;
 
+			pending = pending + bitmaskSum(bitmaskShared);
+			pending = pending + bitmaskSum(bitmaskPrivate);
 
-			while (bitmask > 0) {           // until all bits are zero
-				if ((bitmask & 1) == 1)     // check lower bit
-					pending++;
-				bitmask >>= 1;              // shift bits, removing lower bit
-			}
 		}
 
 	}
 	
     printk("\nThe current user has:\n%d processes running\n%d filedescriptors watched\n%d signals pendning\n", processes, fd, pending);
 	   
-  
-   
-  
-  
-  
   return 0;
 }
 
+int bitmaskSum(int bitmask){
+	int sum = 0;
 
-/*unsigned int bitCount (unsigned long value) {
-    unsigned int count = 0;
-    while (value > 0) {           // until all bits are zero
-        if ((value & 1) == 1)     // check lower bit
-            count++;
-        value >>= 1;              // shift bits, removing lower bit
-    }
-    return count;
-}*/
+	while (bitmask > 0) {
+		if ((bitmask & 1) == 1)
+			sum++;
+		bitmask >>= 1;
+	}
+
+	return sum;
+}
+
 
