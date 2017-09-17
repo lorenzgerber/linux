@@ -6,7 +6,7 @@
 #include <linux/processInfo.h>
 #include <linux/signal.h>
 
-SYSCALL_DEFINE2(processInfo, int*, buf, int, size) {
+asmlinkage long sys_processInfo(int* procs, int* fds, int* sigpends) {
 
     struct task_struct *proces;
     int processes = 0;
@@ -14,12 +14,6 @@ SYSCALL_DEFINE2(processInfo, int*, buf, int, size) {
     int pending = 0;
     int bitmaskShared;
     int bitmaskPrivate;
-
-
-    int buffers_in_kernel[size];
-	//int *user_pointers[size];
-	//int i;
-	//unsigned long res;
 
 
     for_each_process(proces) {
@@ -38,15 +32,9 @@ SYSCALL_DEFINE2(processInfo, int*, buf, int, size) {
 
 	}
 
-    buffers_in_kernel[0] = processes;
-    buffers_in_kernel[1] = fd;
-    buffers_in_kernel[2] = pending;
-    /*
-    res = copy_from_user(user_pointers, buf, sizeof(user_pointers[size]));
-
-	for (i = 0; i < size; i++) {
-		 res = copy_to_user(user_pointers[i], &buffers_in_kernel[i], sizeof(int));
-	}*/
+    put_user(fd, procs);
+    put_user(pending, fds);
+    put_user(processes, sigpends);
 	
     printk("\nThe current user has:\n%d processes running\n%d filedescriptors watched\n%d signals pendning\n", processes, fd, pending);
 	   
