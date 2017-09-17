@@ -6,7 +6,7 @@
 #include <linux/processInfo.h>
 #include <linux/signal.h>
 
-asmlinkage long sys_processInfo(int* procs, int* fds, int* sigpends) {
+SYSCALL_DEFINE3(processInfo, int*, procs, int*, fds, int*, sigpends) {
 
     struct task_struct *proces;
     int processes = 0;
