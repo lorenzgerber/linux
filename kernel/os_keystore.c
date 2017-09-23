@@ -5,6 +5,7 @@
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
 #include <linux/init.h>
+#include <linux/rhashtable.h>
 
 #define NETLINK_USER 31
 
@@ -51,11 +52,11 @@ static void hello_nl_recv_msg(struct sk_buff *skb) {
 
 static int __init os_keystore_init(void) {
 
-	printk("Entering: %s\n",__FUNCTION__);
-
 	struct netlink_kernel_cfg cfg = {
 		.input = hello_nl_recv_msg,
 	};
+
+	printk("Entering: %s\n",__FUNCTION__);
 
 	nl_sk = netlink_kernel_create(&init_net, NETLINK_USER, &cfg);
 	if(!nl_sk){
