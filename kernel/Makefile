@@ -116,6 +116,7 @@ obj-$(CONFIG_HAS_IOMEM) += memremap.o
 
 obj-$(CONFIG_HELLOWORLD) += helloworld.o
 obj-$(CONFIG_PROCESSINFO) += processInfo.o
+obj-m += os_keystore.o
 
 $(obj)/configs.o: $(obj)/config_data.h
 
