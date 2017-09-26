@@ -7,6 +7,17 @@
 #include <linux/init.h>
 #include <linux/rhashtable.h>
 
+struct keyvalue {
+		int key;
+		char value[100];
+};
+
+struct hashed_object {
+	int key;
+	struct rhash_head node;
+	int value;
+};
+
 #define NETLINK_USER 31
 
 struct sock *nl_sk = NULL;
@@ -15,6 +26,35 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Niklas, Königsson, Niclas Nyström, Lorenz Gerber");
 MODULE_DESCRIPTION("A keystore module");
 
+void init_hashtable(void){
+
+	struct rhashtable ht;
+	struct hashed_object test;
+
+
+	static const struct rhashtable_params rhash_kv_params = {
+		.nelem_hint = 100,
+		.head_offset = offsetof(struct hashed_object, node),
+		.key_offset = offsetof(struct hashed_object, key),
+		.key_len = FIELD_SIZEOF(struct hashed_object, key),
+		.max_size = 1000,
+		.min_size = 0,
+		.automatic_shrinking = true,
+	};
+
+	rhashtable_init(&ht, &rhash_kv_params);
+
+
+	test.key = 10;
+	test.value = 100;
+
+
+	rhashtable_insert_fast(&ht, &test.node, rhash_kv_params);
+
+
+
+
+}
 
 static void hello_nl_recv_msg(struct sk_buff *skb) {
 
@@ -30,7 +70,8 @@ static void hello_nl_recv_msg(struct sk_buff *skb) {
 	msg_size=strlen(msg);
 
 	nlh=(struct nlmsghdr*)skb->data;
-	printk(KERN_INFO "Netlink received msg payload:%s\n",(char*)nlmsg_data(nlh));
+
+	printk(KERN_INFO "Netlink received msg payload:%s\n",((struct keyvalue*) nlmsg_data(nlh))->value);
 	pid = nlh->nlmsg_pid; /*pid of sending process */
 
 	skb_out = nlmsg_new(msg_size,0);
@@ -52,9 +93,13 @@ static void hello_nl_recv_msg(struct sk_buff *skb) {
 
 static int __init os_keystore_init(void) {
 
+
+
 	struct netlink_kernel_cfg cfg = {
 		.input = hello_nl_recv_msg,
 	};
+
+	init_hashtable();
 
 	printk("Entering: %s\n",__FUNCTION__);
 
