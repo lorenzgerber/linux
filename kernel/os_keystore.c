@@ -28,6 +28,7 @@ static struct rhashtable ht;
 // struct currently used for
 // communication with netlink sockets
 struct keyvalue {
+		int operation;
 		int key;
 		char value[100];
 };
@@ -100,14 +101,13 @@ static void hello_nl_recv_msg(struct sk_buff *skb) {
 
 
 	// creating data / data containers
-	char *msg="Hello from kernel";
+	char *msg="";
 	int res;
 	struct hashed_object *test;
 	struct hashed_object *out;
 
-
 	printk(KERN_INFO "Entering: %s\n", __FUNCTION__);
-	msg_size=strlen(msg);
+
 
 	// obtain/read data from the socket buffer
 	nlh=(struct nlmsghdr*)skb->data;
@@ -129,14 +129,19 @@ static void hello_nl_recv_msg(struct sk_buff *skb) {
 
 
 	// inserting data into the rhashtable
-	test->key = sum;
-	strcpy(test->value, ((struct keyvalue*) nlmsg_data(nlh))->value);
-	insert(test);
-
-	// obtaining data from the rhashtable
-	memcpy(out, lookup(sum), sizeof(struct hashed_object));
-	printk(KERN_INFO "lookup value from rhastable:%s\n", out->value);
-
+	if(((struct keyvalue*) nlmsg_data(nlh))->operation == 0){
+		printk(KERN_INFO "Inserting %s with key %d\n",((struct keyvalue*) nlmsg_data(nlh))->value,((struct keyvalue*) nlmsg_data(nlh))->key );
+		test->key = sum;
+		strcpy(test->value, ((struct keyvalue*) nlmsg_data(nlh))->value);
+		insert(test);
+		strcpy(msg, "insert success");
+	}else if(((struct keyvalue*) nlmsg_data(nlh))->operation == 1){
+		// obtaining data from the rhashtable
+		memcpy(out, lookup(((struct keyvalue*) nlmsg_data(nlh))->key), sizeof(struct hashed_object));
+		printk(KERN_INFO "lookup value from rhastable:%s\n", out->value);
+		strcpy(msg, out->value);
+	}
+	msg_size=strlen(msg);
 
 
 	// The rest of this function is concerned with
