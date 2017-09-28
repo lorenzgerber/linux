@@ -9,6 +9,9 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 
+#define INSERT 0
+#define GET 1
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Niklas, Königsson, Niclas Nyström, Lorenz Gerber");
 MODULE_DESCRIPTION("A keystore module");
@@ -16,25 +19,16 @@ MODULE_DESCRIPTION("A keystore module");
 #define NETLINK_USER 31
 struct sock *nl_sk = NULL;
 
-// static test variable to implement
-// some sort of state from one user
-// call to the next
-static int sum = 0;
-
-// static rhashtable to be accessible
-// from inside the netlink socket callback construct
 static struct rhashtable ht;
 
-// struct currently used for
-// communication with netlink sockets
+// netlink socket com struct
 struct keyvalue {
 		int operation;
 		int key;
 		char value[100];
 };
 
-// struct currently used for
-// storage in the rhashtable
+// rhashtable storage struct
 struct hashed_object {
 	int key;
 	struct rhash_head node;
@@ -52,7 +46,7 @@ static const struct rhashtable_params rhash_kv_params = {
 			.max_size = 1000,
 			.min_size = 0,
 			.automatic_shrinking = true,
-		};
+};
 
 
 
@@ -91,62 +85,69 @@ struct hashed_object* lookup(int key){
  * This is actually the function where most of the logic will be
  * implemented. It reads the socket,
  */
-static void hello_nl_recv_msg(struct sk_buff *skb) {
+static void keystore(struct sk_buff *skb) {
 
-	// net socked related initialization
+	/*
+	 * Initialization
+	 */
 	struct nlmsghdr *nlh;
 	int pid;
 	struct sk_buff *skb_out;
 	int msg_size;
+	int operation;
 	int res;
 
-	// creating data / data containers
+	// creating data containers
 	char msg[100];
-	//memset(msg, 0, 100);
-
-	struct hashed_object *test;
-	struct hashed_object *out;
+	struct hashed_object *hash_data;
 
 	printk(KERN_INFO "Entering: %s\n", __FUNCTION__);
 
 
-	// obtain/read data from the socket buffer
+
+	/*
+	 * Get Userspace Data
+	 */
 	nlh=(struct nlmsghdr*)skb->data;
-
-
-	printk(KERN_INFO "Netlink received msg payload:%s\n",((struct keyvalue*) nlmsg_data(nlh))->value);
+	printk(KERN_INFO "Netlink received msg payload:%s\n",
+			((struct keyvalue*) nlmsg_data(nlh))->value);
 	pid = nlh->nlmsg_pid; /*pid of sending process */
 
-
-	// allocate dyn mem for objects that shall be added/obtained
-	// from the rhashtable
-	test = kmalloc(sizeof(struct hashed_object), GFP_KERNEL);
-	out = kmalloc(sizeof(struct hashed_object), GFP_KERNEL);
+	// hash_data container
+	hash_data = kmalloc(sizeof(struct hashed_object), GFP_KERNEL);
+	operation = ((struct keyvalue*) nlmsg_data(nlh))->operation;
 
 
-	// testing to create state: adding up the key values
-	sum += ((struct keyvalue*) nlmsg_data(nlh))->key;
-	printk(KERN_INFO "New sum:%d\n", sum);
 
-
-	// inserting data into the rhashtable
-	if(((struct keyvalue*) nlmsg_data(nlh))->operation == 0){
-		printk(KERN_INFO "Inserting %s with key %d\n",((struct keyvalue*) nlmsg_data(nlh))->value,((struct keyvalue*) nlmsg_data(nlh))->key );
-		test->key = sum;
-		strcpy(test->value, ((struct keyvalue*) nlmsg_data(nlh))->value);
-		insert(test);
-		strcpy(msg, "insert success");
-	}else if(((struct keyvalue*) nlmsg_data(nlh))->operation == 1){
-		// obtaining data from the rhashtable
-		memcpy(out, lookup(((struct keyvalue*) nlmsg_data(nlh))->key), sizeof(struct hashed_object));
-		printk(KERN_INFO "lookup value from rhastable:%s\n", out->value);
-		strcpy(msg, out->value);
+	/*
+	 * Hashtable operations
+	 */
+	switch(operation) {
+		case INSERT:
+			printk(KERN_INFO "Inserting %s with key %d\n",
+					((struct keyvalue*) nlmsg_data(nlh))->value,
+					((struct keyvalue*) nlmsg_data(nlh))->key );
+			hash_data->key = ((struct keyvalue*) nlmsg_data(nlh))->key;
+			strcpy(hash_data->value, ((struct keyvalue*) nlmsg_data(nlh))->value);
+			insert(hash_data);
+			strcpy(msg, "insert success");
+			break;
+		case GET:
+			memcpy(hash_data, lookup(((struct keyvalue*) nlmsg_data(nlh))->key),
+					sizeof(struct hashed_object));
+			printk(KERN_INFO "lookup value from rhastable:%s\n", hash_data->value);
+			strcpy(msg, hash_data->value);
+			break;
+		default:
+			break;
 	}
+
+
+
+	/*
+	 * Return data to Userspace
+	 */
 	msg_size=strlen(msg);
-
-
-	// The rest of this function is concerned with
-	// sending data back to user space through netlink socket
 	skb_out = nlmsg_new(msg_size,0);
 
 	if(!skb_out){
@@ -169,7 +170,7 @@ static int __init os_keystore_init(void) {
 	// netlink configuration struct that
 	// contains the call back function
 	struct netlink_kernel_cfg cfg = {
-		.input = hello_nl_recv_msg,
+		.input = keystore,
 	};
 
 	init_hashtable();
@@ -178,8 +179,8 @@ static int __init os_keystore_init(void) {
 
 	// setting up the netlink socket
 	nl_sk = netlink_kernel_create(&init_net, NETLINK_USER, &cfg);
-	if(!nl_sk){
 
+	if(!nl_sk){
 		printk(KERN_ALERT "Error creating socket.\n");
 		return -10;
 	}
