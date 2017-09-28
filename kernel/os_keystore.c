@@ -98,12 +98,12 @@ static void hello_nl_recv_msg(struct sk_buff *skb) {
 	int pid;
 	struct sk_buff *skb_out;
 	int msg_size;
-
+	int res;
 
 	// creating data / data containers
 	char msg[100];
-	memset(msg, 0, 100);
-	int res;
+	//memset(msg, 0, 100);
+
 	struct hashed_object *test;
 	struct hashed_object *out;
 
