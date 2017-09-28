@@ -101,7 +101,8 @@ static void hello_nl_recv_msg(struct sk_buff *skb) {
 
 
 	// creating data / data containers
-	char *msg="";
+	char msg[100];
+	memset(msg, 0, 100);
 	int res;
 	struct hashed_object *test;
 	struct hashed_object *out;
