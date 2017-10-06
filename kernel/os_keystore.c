@@ -9,8 +9,10 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 
-#define INSERT 0
-#define GET 1
+#define INSERT 		0
+#define GET 		1
+#define DELETE 		2
+#define DELETE_KEY 	3
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Niklas, Königsson, Niclas Nyström, Lorenz Gerber");
@@ -79,6 +81,36 @@ struct hashed_object* lookup(int key){
 }
 
 /**
+ * @hash_data Entry to remove from hash table.
+ *
+ * Wrapper for rhashtable remove function which returns 0 on success else -ENOENT
+ * if the entry could not be found. Shrinks the hashtable automatically if
+ * "shrink_decision" function is specified in init_hashtable().
+ */
+void delete(struct hashed_object *hash_data) {
+	int res = rhashtable_remove_fast(&ht, &(hash_data->node), rhash_kv_params);
+	printk(KERN_INFO "Result for remove_fast: %d\n", res);
+}
+
+/**
+ * @hash_data Object key/index to remove from hash table.
+ *
+ * Wrapper for rhashtable remove function which returns 0 on success else -ENOENT
+ * if the entry could not be found. Shrinks the hashtable automatically if
+ * "shrink_decision" function is specified in init_hashtable().
+ */
+void delete_key(int key) {
+	struct hashed_object *retrievedObj = lookup(key);
+	if (retrievedObj != NULL) {
+		int res = rhashtable_remove_fast(&ht, &(retrievedObj->node), rhash_kv_params);
+		printk(KERN_INFO "Result for remove_fast (by key %d): %d\n", key, res);
+	} else {
+		printk(KERN_INFO "Result for remove_fast (by key %d): Could not find object.\n", key, res);
+	}
+}
+
+
+/**
  * netsocket callback function - should be renamed to something
  * more meaningful.
  *
@@ -137,6 +169,23 @@ static void keystore(struct sk_buff *skb) {
 					sizeof(struct hashed_object));
 			printk(KERN_INFO "lookup value from rhastable:%s\n", hash_data->value);
 			strcpy(msg, hash_data->value);
+			break;
+		case DELETE:
+			printk(KERN_INFO "Removing %s with key %d\n",
+					((struct keyvalue*) nlmsg_data(nlh))->value,
+					((struct keyvalue*) nlmsg_data(nlh))->key );
+			hash_data->key = ((struct keyvalue*) nlmsg_data(nlh))->key;
+			strcpy(hash_data->value, ((struct keyvalue*) nlmsg_data(nlh))->value);
+			DELETE(hash_data);
+			strcpy(msg, "DELETE success");
+			break;
+		case DELETE_KEY:
+			printk(KERN_INFO "Removing object with key %d\n",
+						((struct keyvalue*) nlmsg_data(nlh))->key );
+			memcpy(hash_data, lookup(((struct keyvalue*) nlmsg_data(nlh))->key),
+							sizeof(struct hashed_object));
+			DELETE(hash_data);
+			strcpy(msg, "DELETE_KEY success");
 			break;
 		default:
 			break;
@@ -197,3 +246,4 @@ static void __exit os_keystore_exit(void) {
 
 module_init(os_keystore_init);
 module_exit(os_keystore_exit);
+
