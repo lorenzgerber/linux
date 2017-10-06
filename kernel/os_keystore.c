@@ -182,9 +182,8 @@ static void keystore(struct sk_buff *skb) {
 		case DELETE_KEY:
 			printk(KERN_INFO "Removing object with key %d\n",
 						((struct keyvalue*) nlmsg_data(nlh))->key );
-			memcpy(hash_data, lookup(((struct keyvalue*) nlmsg_data(nlh))->key),
+			memcpy(hash_data, delete_key(((struct keyvalue*) nlmsg_data(nlh))->key),
 							sizeof(struct hashed_object));
-			DELETE(hash_data);
 			strcpy(msg, "DELETE_KEY success");
 			break;
 		default:
