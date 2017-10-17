@@ -88,7 +88,8 @@ struct hashed_object* lookup(int key){
  * "shrink_decision" function is specified in init_hashtable().
  */
 void delete(struct hashed_object *hash_data) {
-	int res = rhashtable_remove_fast(&ht, &(hash_data->node), rhash_kv_params);
+	int res;
+	res = rhashtable_remove_fast(&ht, &(hash_data->node), rhash_kv_params);
 	printk(KERN_INFO "Result for remove_fast: %d\n", res);
 }
 
@@ -102,10 +103,11 @@ void delete(struct hashed_object *hash_data) {
 void delete_key(int key) {
 	struct hashed_object *retrievedObj = lookup(key);
 	if (retrievedObj != NULL) {
-		int res = rhashtable_remove_fast(&ht, &(retrievedObj->node), rhash_kv_params);
+		int res;
+		res = rhashtable_remove_fast(&ht, &(retrievedObj->node), rhash_kv_params);
 		printk(KERN_INFO "Result for remove_fast (by key %d): %d\n", key, res);
 	} else {
-		printk(KERN_INFO "Result for remove_fast (by key %d): Could not find object.\n", key, res);
+		printk(KERN_INFO "Result for remove_fast (by key %d): Could not find object.\n", key);
 	}
 }
 
@@ -176,14 +178,13 @@ static void keystore(struct sk_buff *skb) {
 					((struct keyvalue*) nlmsg_data(nlh))->key );
 			hash_data->key = ((struct keyvalue*) nlmsg_data(nlh))->key;
 			strcpy(hash_data->value, ((struct keyvalue*) nlmsg_data(nlh))->value);
-			DELETE(hash_data);
+			delete(hash_data);
 			strcpy(msg, "DELETE success");
 			break;
 		case DELETE_KEY:
 			printk(KERN_INFO "Removing object with key %d\n",
 						((struct keyvalue*) nlmsg_data(nlh))->key );
-			memcpy(hash_data, delete_key(((struct keyvalue*) nlmsg_data(nlh))->key),
-							sizeof(struct hashed_object));
+			delete_key(((struct keyvalue*) nlmsg_data(nlh))->key);
 			strcpy(msg, "DELETE_KEY success");
 			break;
 		default:
