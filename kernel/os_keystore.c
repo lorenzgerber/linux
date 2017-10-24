@@ -27,14 +27,14 @@ static struct rhashtable ht;
 struct keyvalue {
 		int operation;
 		int key;
-		char value[100];
+		char *value;
 };
 
 // rhashtable storage struct
 struct hashed_object {
 	int key;
 	struct rhash_head node;
-	char value[100];
+	char *value;
 };
 
 
@@ -132,8 +132,9 @@ static void keystore(struct sk_buff *skb) {
 	int res;
 
 	// creating data containers
-	char msg[100];
+	char *msg;
 	struct hashed_object *hash_data;
+
 
 	printk(KERN_INFO "Entering: %s\n", __FUNCTION__);
 
@@ -149,6 +150,10 @@ static void keystore(struct sk_buff *skb) {
 
 	// hash_data container
 	hash_data = kmalloc(sizeof(struct hashed_object), GFP_KERNEL);
+	if(((struct keyvalue*) nlmsg_data(nlh))->operation == 0 ){
+		hash_data->value = kmalloc(sizeof(char)*(strlen(((struct keyvalue*) nlmsg_data(nlh))->value)+1), GFP_KERNEL);
+	}
+
 	operation = ((struct keyvalue*) nlmsg_data(nlh))->operation;
 
 
@@ -164,12 +169,14 @@ static void keystore(struct sk_buff *skb) {
 			hash_data->key = ((struct keyvalue*) nlmsg_data(nlh))->key;
 			strcpy(hash_data->value, ((struct keyvalue*) nlmsg_data(nlh))->value);
 			insert(hash_data);
+			msg = kmalloc(sizeof(char)*15, GFP_KERNEL);
 			strcpy(msg, "insert success");
 			break;
 		case GET:
 			memcpy(hash_data, lookup(((struct keyvalue*) nlmsg_data(nlh))->key),
 					sizeof(struct hashed_object));
 			printk(KERN_INFO "lookup value from rhastable:%s\n", hash_data->value);
+			msg = kmalloc(sizeof(char)*(strlen(hash_data->value)+1), GFP_KERNEL);
 			strcpy(msg, hash_data->value);
 			break;
 		case DELETE:
@@ -179,12 +186,14 @@ static void keystore(struct sk_buff *skb) {
 			hash_data->key = ((struct keyvalue*) nlmsg_data(nlh))->key;
 			strcpy(hash_data->value, ((struct keyvalue*) nlmsg_data(nlh))->value);
 			delete(hash_data);
+			msg = kmalloc(sizeof(char)*15, GFP_KERNEL);
 			strcpy(msg, "DELETE success");
 			break;
 		case DELETE_KEY:
 			printk(KERN_INFO "Removing object with key %d\n",
 						((struct keyvalue*) nlmsg_data(nlh))->key );
 			delete_key(((struct keyvalue*) nlmsg_data(nlh))->key);
+			msg = kmalloc(sizeof(char)*19, GFP_KERNEL);
 			strcpy(msg, "DELETE_KEY success");
 			break;
 		default:
@@ -196,7 +205,7 @@ static void keystore(struct sk_buff *skb) {
 	/*
 	 * Return data to Userspace
 	 */
-	msg_size=strlen(msg);
+	msg_size=strlen(msg)+1;
 	skb_out = nlmsg_new(msg_size,0);
 
 	if(!skb_out){
