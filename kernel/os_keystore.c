@@ -8,6 +8,7 @@
 #include <linux/rhashtable.h>
 #include <linux/string.h>
 #include <linux/slab.h>
+#include <linux/skbuff.h>
 
 #define INSERT 		0
 #define GET 		1
@@ -223,13 +224,25 @@ static void keystore(struct sk_buff *skb) {
 	printk(KERN_INFO "Error while sending back to user\n");
 }
 
+void input (struct sk_buff *skb)
+{
+	printk("Here we go\n");
+	wake_up_interruptible(sk_sleep(skb->sk));
+}
+
+
+
 static int __init os_keystore_init(void) {
 
 	// netlink configuration struct that
 	// contains the call back function
 	struct netlink_kernel_cfg cfg = {
-		.input = keystore,
+		.input = input,
 	};
+
+	int rc = 0;
+	struct sk_buff *skb = NULL;
+
 
 	init_hashtable();
 
@@ -237,6 +250,9 @@ static int __init os_keystore_init(void) {
 
 	// setting up the netlink socket
 	nl_sk = netlink_kernel_create(&init_net, NETLINK_USER, &cfg);
+
+	skb = skb_recv_datagram(nl_sk, 0, 0, &rc);
+	printk("this is the shit\n");
 
 	if(!nl_sk){
 		printk(KERN_ALERT "Error creating socket.\n");
