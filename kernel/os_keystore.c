@@ -8,6 +8,9 @@
 #include <linux/rhashtable.h>
 #include <linux/string.h>
 #include <linux/slab.h>
+#include <linux/timer.h>
+#include <linux/kthread.h>
+#include <linux/time.h>
 
 #define INSERT 		0
 #define GET 		1
@@ -17,6 +20,9 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Niklas, Königsson, Niclas Nyström, Lorenz Gerber");
 MODULE_DESCRIPTION("A keystore module");
+
+static struct task_struct *thread1;
+static void keystore(struct sk_buff *skb);
 
 #define NETLINK_USER 31
 struct sock *nl_sk = NULL;
@@ -50,7 +56,19 @@ static const struct rhashtable_params rhash_kv_params = {
 			.automatic_shrinking = true,
 };
 
+int thread_fn(void* data) {
+	struct sk_buff *skb;
+	int rc;
 
+	printk(KERN_INFO "In thread1");
+
+	skb = skb_recv_datagram(nl_sk, 0, 0, &rc);
+	keystore(skb);
+	printk("passed the code of interest\n");
+
+
+	return 0;
+}
 
 
 /**
@@ -223,13 +241,25 @@ static void keystore(struct sk_buff *skb) {
 	printk(KERN_INFO "Error while sending back to user\n");
 }
 
+
+static void input(struct sk_buff *skb){
+
+	printk("now in input\n");
+	wake_up_interruptible(sk_sleep(skb->sk));
+
+}
+
 static int __init os_keystore_init(void) {
 
 	// netlink configuration struct that
 	// contains the call back function
 	struct netlink_kernel_cfg cfg = {
-		.input = keystore,
+		.input = input,
 	};
+
+	 char  our_thread[8]="thread1";
+	    printk(KERN_INFO "in init");
+
 
 	init_hashtable();
 
@@ -243,11 +273,23 @@ static int __init os_keystore_init(void) {
 		return -10;
 	}
 
+	thread1 = kthread_create(thread_fn,NULL,our_thread);
+		    if((thread1))
+		        {
+		        printk(KERN_INFO "in if");
+		        wake_up_process(thread1);
+		        }
+
 	return 0;
 }
 
 
 static void __exit os_keystore_exit(void) {
+
+	int ret;
+	 ret = kthread_stop(thread1);
+	 if(!ret)
+	  printk(KERN_INFO "Thread stopped");
 
 	printk(KERN_INFO "exiting hello module\n");
 	netlink_kernel_release(nl_sk);
