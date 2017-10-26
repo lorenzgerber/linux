@@ -16,7 +16,7 @@
 #define GET_ALL		4
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Niklas, Königsson, Niclas Nyström, Lorenz Gerber");
+MODULE_AUTHOR("Niklas Königsson, Niclas Nyström, Lorenz Gerber");
 MODULE_DESCRIPTION("A keystore module");
 
 #define NETLINK_USER 31
@@ -29,7 +29,7 @@ struct keyvalue {
 		int operation;
 		int remaining;
 		int key;
-		char *value;
+		char value[40];
 };
 
 // rhashtable storage struct
@@ -202,20 +202,25 @@ static void keystore(struct sk_buff *skb) {
 			break;
 		case GET_ALL:
 			printk(KERN_INFO "Getting all\n");
-			nestedmess = kmalloc(sizeof(char)*10, GFP_KERNEL);
-			strcpy(nestedmess, "qwertyasd");
+			//nestedmess = kmalloc(sizeof(char)*10, GFP_USER);
+			//strcpy(nestedmess, "qwertyasd");
 
-			sendstruct = kmalloc(sizeof(struct keyvalue), GFP_KERNEL);
-			printk(KERN_INFO "malloced sendstruct size %d\n", (int)sizeof(struct keyvalue));
+			sendstruct = kmalloc(sizeof(struct keyvalue), GFP_USER);
+			memset(sendstruct->value, 0 , 40);
+			printk(KERN_INFO "malloced sendstruct size %d\n", (int)sizeof(sendstruct));
+			//sendstruct->value = kmalloc(sizeof(char)*10, GFP_USER);
+			strcpy(sendstruct->value, "qwertyasd");
 			sendstruct->remaining = 5;
 			printk(KERN_INFO "assigned value to struct(remaining). %d\n", sendstruct->remaining);
-			sendstruct->value = nestedmess;
+			printk(KERN_INFO "new size of struct %d\n", (int)sizeof(sendstruct));
+			//sendstruct->value = nestedmess;
 			printk(KERN_INFO "assigned value to struct(char data) %s\n", sendstruct->value);
+			printk(KERN_INFO "new size of struct %d\n", (int)sizeof(sendstruct));
 			//msg = kmalloc(sizeof(sendstruct)+strlen(nestedmess)+1, GFP_KERNEL);
 			//memcpy(msg, sendstruct, sizeof(sendstruct)+strlen(nestedmess)+1);
 			//printk(KERN_INFO "memcopied sendback to msg. copied %d bytes \n", (int)(sizeof(sendstruct)+strlen(nestedmess)+1));
 
-			msg_size = sizeof(sendstruct) + strlen(nestedmess)+1;
+			msg_size = sizeof(struct keyvalue);
 			skb_out = nlmsg_new(msg_size, 0);
 
 			if (!skb_out) {
