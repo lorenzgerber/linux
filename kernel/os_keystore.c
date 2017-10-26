@@ -13,6 +13,7 @@
 #define GET 		1
 #define DELETE 		2
 #define DELETE_KEY 	3
+#define GET_ALL		4
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Niklas, Königsson, Niclas Nyström, Lorenz Gerber");
@@ -26,6 +27,7 @@ static struct rhashtable ht;
 // netlink socket com struct
 struct keyvalue {
 		int operation;
+		int remaining;
 		int key;
 		char *value;
 };
@@ -133,6 +135,8 @@ static void keystore(struct sk_buff *skb) {
 
 	// creating data containers
 	char *msg;
+	char* nestedmess;
+	struct keyvalue* sendstruct;
 	struct hashed_object *hash_data;
 
 
@@ -196,6 +200,21 @@ static void keystore(struct sk_buff *skb) {
 			msg = kmalloc(sizeof(char)*19, GFP_KERNEL);
 			strcpy(msg, "DELETE_KEY success");
 			break;
+		case GET_ALL:
+			printk(KERN_INFO "Getting all\n");
+			nestedmess = kmalloc(sizeof(char)*10, GFP_KERNEL);
+			strcpy(nestedmess, "qwertyasd");
+
+			sendstruct = kmalloc(sizeof(struct keyvalue), GFP_KERNEL);
+			printk(KERN_INFO "malloced sendstruct size %d\n", (int)sizeof(struct keyvalue));
+			sendstruct->remaining = 5;
+			printk(KERN_INFO "assigned value to struct(remaining)\n");
+			memcpy(sendstruct->value, nestedmess, strlen(nestedmess)+1);
+			printk(KERN_INFO "assigned value to struct(char data)\n");
+			msg = kmalloc(sizeof(sendstruct)+strlen(nestedmess)+1, GFP_KERNEL);
+			memcpy(msg, sendstruct, sizeof(sendstruct)+strlen(nestedmess)+1);
+			printk(KERN_INFO "memcopied sendback to msg. copied %d bytes \n", (int)(sizeof(sendstruct)+strlen(nestedmess)+1));
+			break;
 		default:
 			break;
 	}
@@ -205,7 +224,7 @@ static void keystore(struct sk_buff *skb) {
 	/*
 	 * Return data to Userspace
 	 */
-	msg_size=strlen(msg)+1;
+	msg_size=sizeof(msg)+1;
 	skb_out = nlmsg_new(msg_size,0);
 
 	if(!skb_out){
