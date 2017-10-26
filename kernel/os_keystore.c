@@ -208,12 +208,30 @@ static void keystore(struct sk_buff *skb) {
 			sendstruct = kmalloc(sizeof(struct keyvalue), GFP_KERNEL);
 			printk(KERN_INFO "malloced sendstruct size %d\n", (int)sizeof(struct keyvalue));
 			sendstruct->remaining = 5;
-			printk(KERN_INFO "assigned value to struct(remaining)\n");
-			memcpy(sendstruct->value, nestedmess, strlen(nestedmess)+1);
-			printk(KERN_INFO "assigned value to struct(char data)\n");
-			msg = kmalloc(sizeof(sendstruct)+strlen(nestedmess)+1, GFP_KERNEL);
-			memcpy(msg, sendstruct, sizeof(sendstruct)+strlen(nestedmess)+1);
-			printk(KERN_INFO "memcopied sendback to msg. copied %d bytes \n", (int)(sizeof(sendstruct)+strlen(nestedmess)+1));
+			printk(KERN_INFO "assigned value to struct(remaining). %d\n", sendstruct->remaining);
+			sendstruct->value = nestedmess;
+			printk(KERN_INFO "assigned value to struct(char data) %s\n", sendstruct->value);
+			//msg = kmalloc(sizeof(sendstruct)+strlen(nestedmess)+1, GFP_KERNEL);
+			//memcpy(msg, sendstruct, sizeof(sendstruct)+strlen(nestedmess)+1);
+			//printk(KERN_INFO "memcopied sendback to msg. copied %d bytes \n", (int)(sizeof(sendstruct)+strlen(nestedmess)+1));
+
+			msg_size = sizeof(sendstruct) + strlen(nestedmess)+1;
+			skb_out = nlmsg_new(msg_size, 0);
+
+			if (!skb_out) {
+				printk(KERN_ERR "Failed to allocate new skb\n");
+				return;
+			}
+
+			nlh = nlmsg_put(skb_out, 0, 0, NLMSG_DONE, msg_size, 0);
+			NETLINK_CB(skb_out).dst_group = 0; /* not in mcast group */
+			memcpy(nlmsg_data(nlh), sendstruct, msg_size);
+
+			res = nlmsg_unicast(nl_sk, skb_out, pid);
+
+			if (res < 0) {
+				printk(KERN_INFO "Error while sending back to user\n");
+			}
 			break;
 		default:
 			break;
@@ -224,22 +242,27 @@ static void keystore(struct sk_buff *skb) {
 	/*
 	 * Return data to Userspace
 	 */
-	msg_size=sizeof(msg)+1;
-	skb_out = nlmsg_new(msg_size,0);
+	if(operation != GET_ALL){
+		msg_size=sizeof(msg)+1;
+		skb_out = nlmsg_new(msg_size,0);
 
-	if(!skb_out){
-		printk(KERN_ERR "Failed to allocate new skb\n");
-		return;
+		if(!skb_out){
+			printk(KERN_ERR "Failed to allocate new skb\n");
+			return;
+		}
+
+		nlh=nlmsg_put(skb_out,0,0,NLMSG_DONE,msg_size,0);
+		NETLINK_CB(skb_out).dst_group = 0; /* not in mcast group */
+		strncpy(nlmsg_data(nlh),msg,msg_size);
+
+		res=nlmsg_unicast(nl_sk,skb_out,pid);
+
+		if(res<0){
+			printk(KERN_INFO "Error while sending back to user\n");
+		}
+
 	}
 
-	nlh=nlmsg_put(skb_out,0,0,NLMSG_DONE,msg_size,0);
-	NETLINK_CB(skb_out).dst_group = 0; /* not in mcast group */
-	strncpy(nlmsg_data(nlh),msg,msg_size);
-
-	res=nlmsg_unicast(nl_sk,skb_out,pid);
-
-	if(res<0)
-	printk(KERN_INFO "Error while sending back to user\n");
 }
 
 static int __init os_keystore_init(void) {
