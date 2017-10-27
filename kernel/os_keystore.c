@@ -206,15 +206,16 @@ static void keystore(struct sk_buff *skb) {
 		case GET_ALL:
 			printk(KERN_INFO "Getting all\n");
 
-			nestedmess = kmalloc(sizeof(char)*6, GFP_USER);
-			nestedmess[0] = 'k';
+			nestedmess = kmalloc(sizeof(char)*6, GFP_KERNEL);
+			/*nestedmess[0] = 'k';
 			nestedmess[1] = 'u';
 			nestedmess[2] = 'k';
 			nestedmess[3] = 'e';
 			nestedmess[4] = 'n';
-			nestedmess[5] = '\0';
+			nestedmess[5] = '\0';*/
+			strcpy(nestedmess, "kuken");
 			printk(KERN_INFO "**%d**\n", strlen(nestedmess));
-			returnvalues = kmalloc(((sizeof(struct returnstruct))+(sizeof(char)*strlen(nestedmess))+1), GFP_USER);
+			returnvalues = kmalloc(((sizeof(struct returnstruct))+(sizeof(char)*strlen(nestedmess))+1), GFP_KERNEL);
 			printk(KERN_INFO "malloced sendstruct size %d\n", (int)sizeof(returnvalues));
 
 			returnvalues->remaining = 5;
@@ -225,7 +226,7 @@ static void keystore(struct sk_buff *skb) {
 			printk(KERN_INFO "assigned value to struct(char data) %s\n", returnvalues->value);
 
 			//******send code******
-			msg_size = sizeof(struct returnstruct)+sizeof(char)*strlen(nestedmess)+1;
+			msg_size = sizeof(struct returnstruct)+(sizeof(char)*strlen(nestedmess))+1;
 			skb_out = nlmsg_new(msg_size, 0);
 
 			if (!skb_out) {
@@ -242,8 +243,8 @@ static void keystore(struct sk_buff *skb) {
 			if (res < 0) {
 				printk(KERN_INFO "Error while sending back to user\n");
 			}
-			kfree(nestedmess);
-			kfree(returnvalues);
+			//kfree(nestedmess);
+			//kfree(returnvalues);
 			break;
 		default:
 			break;
@@ -272,6 +273,7 @@ static void keystore(struct sk_buff *skb) {
 		if(res<0){
 			printk(KERN_INFO "Error while sending back to user\n");
 		}
+		kfree(msg);
 
 	}
 	kfree(hash_data->value);
