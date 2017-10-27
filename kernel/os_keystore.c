@@ -27,7 +27,6 @@ static struct rhashtable ht;
 // netlink socket com struct
 struct keyvalue {
 		int operation;
-		int remaining;
 		int key;
 		char value[40];
 };
@@ -39,7 +38,10 @@ struct hashed_object {
 	char *value;
 };
 
-
+struct returnstruct{
+	int remaining;
+	char* value;
+};
 // defining the parameter for the rhashtable as static as they
 // are used with every hashtable operation
 static const struct rhashtable_params rhash_kv_params = {
@@ -136,8 +138,9 @@ static void keystore(struct sk_buff *skb) {
 	// creating data containers
 	char *msg;
 	char* nestedmess;
-	struct keyvalue* sendstruct;
+	//struct keyvalue* sendstruct;
 	struct hashed_object *hash_data;
+	struct returnstruct* returnvalues;
 
 
 	printk(KERN_INFO "Entering: %s\n", __FUNCTION__);
@@ -202,25 +205,22 @@ static void keystore(struct sk_buff *skb) {
 			break;
 		case GET_ALL:
 			printk(KERN_INFO "Getting all\n");
-			//nestedmess = kmalloc(sizeof(char)*10, GFP_USER);
-			//strcpy(nestedmess, "qwertyasd");
 
-			sendstruct = kmalloc(sizeof(struct keyvalue), GFP_USER);
-			memset(sendstruct->value, 0 , 40);
-			printk(KERN_INFO "malloced sendstruct size %d\n", (int)sizeof(sendstruct));
-			//sendstruct->value = kmalloc(sizeof(char)*10, GFP_USER);
-			strcpy(sendstruct->value, "qwertyasd");
-			sendstruct->remaining = 5;
-			printk(KERN_INFO "assigned value to struct(remaining). %d\n", sendstruct->remaining);
-			printk(KERN_INFO "new size of struct %d\n", (int)sizeof(sendstruct));
-			//sendstruct->value = nestedmess;
-			printk(KERN_INFO "assigned value to struct(char data) %s\n", sendstruct->value);
-			printk(KERN_INFO "new size of struct %d\n", (int)sizeof(sendstruct));
-			//msg = kmalloc(sizeof(sendstruct)+strlen(nestedmess)+1, GFP_KERNEL);
-			//memcpy(msg, sendstruct, sizeof(sendstruct)+strlen(nestedmess)+1);
-			//printk(KERN_INFO "memcopied sendback to msg. copied %d bytes \n", (int)(sizeof(sendstruct)+strlen(nestedmess)+1));
 
-			msg_size = sizeof(struct keyvalue);
+			returnvalues = kmalloc(((sizeof(struct returnstruct))+(sizeof(char)*6)), GFP_USER);
+
+			printk(KERN_INFO "malloced sendstruct size %d\n", (int)sizeof(returnvalues));
+
+			nestedmess = kmalloc(sizeof(char)*6, GFP_USER);
+			memset(nestedmess, 0, 5);
+			memcpy(nestedmess, "asdf",5);
+			returnvalues->remaining = 5;
+			memcpy(returnvalues->value, nestedmess, 5);
+			printk(KERN_INFO "assigned value to struct(remaining). %d\n", returnvalues->remaining);
+
+			printk(KERN_INFO "assigned value to struct(char data) %s\n", returnvalues->value);
+
+			msg_size = sizeof(returnvalues);
 			skb_out = nlmsg_new(msg_size, 0);
 
 			if (!skb_out) {
@@ -230,13 +230,15 @@ static void keystore(struct sk_buff *skb) {
 
 			nlh = nlmsg_put(skb_out, 0, 0, NLMSG_DONE, msg_size, 0);
 			NETLINK_CB(skb_out).dst_group = 0; /* not in mcast group */
-			memcpy(nlmsg_data(nlh), sendstruct, msg_size);
+			memcpy(nlmsg_data(nlh), returnvalues, msg_size);
 
 			res = nlmsg_unicast(nl_sk, skb_out, pid);
 
 			if (res < 0) {
 				printk(KERN_INFO "Error while sending back to user\n");
 			}
+			kfree(nestedmess);
+			kfree(returnvalues);
 			break;
 		default:
 			break;
@@ -267,6 +269,8 @@ static void keystore(struct sk_buff *skb) {
 		}
 
 	}
+	kfree(hash_data->value);
+	kfree(hash_data);
 
 }
 
