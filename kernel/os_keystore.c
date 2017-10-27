@@ -13,6 +13,7 @@
 #define GET 		1
 #define DELETE 		2
 #define DELETE_KEY 	3
+#define BACKUP		4
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Niklas, Königsson, Niclas Nyström, Lorenz Gerber");
@@ -111,6 +112,36 @@ void delete_key(int key) {
 	}
 }
 
+void* backup(void){
+
+	int ret;
+	struct rhashtable_iter iter;
+	struct hashed_object* data;
+	printk("we're in backup\n");
+
+	ret = rhashtable_walk_init(&ht, &iter, GFP_ATOMIC);
+	if (ret)
+		return NULL;
+
+	ret = rhashtable_walk_start(&iter);
+	if (ret && ret != -EAGAIN)
+		goto err;
+
+	while ((data = rhashtable_walk_next(&iter))) {
+		// Here we have to take care of the data
+		printk("%s\n", data->value);
+
+	}
+err:
+	rhashtable_walk_stop(&iter);
+	rhashtable_walk_exit(&iter);
+
+	return NULL;
+
+}
+
+
+
 
 /**
  * netsocket callback function - should be renamed to something
@@ -195,6 +226,10 @@ static void keystore(struct sk_buff *skb) {
 			delete_key(((struct keyvalue*) nlmsg_data(nlh))->key);
 			msg = kmalloc(sizeof(char)*19, GFP_KERNEL);
 			strcpy(msg, "DELETE_KEY success");
+			break;
+		case BACKUP:
+			backup();
+
 			break;
 		default:
 			break;
