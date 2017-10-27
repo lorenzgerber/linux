@@ -40,7 +40,7 @@ struct hashed_object {
 
 struct returnstruct{
 	int remaining;
-	char* value;
+	char value[];
 };
 // defining the parameter for the rhashtable as static as they
 // are used with every hashtable operation
@@ -137,7 +137,7 @@ static void keystore(struct sk_buff *skb) {
 
 	// creating data containers
 	char *msg;
-	char* nestedmess;
+	char *nestedmess;
 	//struct keyvalue* sendstruct;
 	struct hashed_object *hash_data;
 	struct returnstruct* returnvalues;
@@ -206,21 +206,26 @@ static void keystore(struct sk_buff *skb) {
 		case GET_ALL:
 			printk(KERN_INFO "Getting all\n");
 
-
-			returnvalues = kmalloc(((sizeof(struct returnstruct))+(sizeof(char)*6)), GFP_USER);
-
+			nestedmess = kmalloc(sizeof(char)*6, GFP_USER);
+			nestedmess[0] = 'k';
+			nestedmess[1] = 'u';
+			nestedmess[2] = 'k';
+			nestedmess[3] = 'e';
+			nestedmess[4] = 'n';
+			nestedmess[5] = '\0';
+			printk(KERN_INFO "**%d**\n", strlen(nestedmess));
+			returnvalues = kmalloc(((sizeof(struct returnstruct))+(sizeof(char)*strlen(nestedmess))+1), GFP_USER);
 			printk(KERN_INFO "malloced sendstruct size %d\n", (int)sizeof(returnvalues));
 
-			nestedmess = kmalloc(sizeof(char)*6, GFP_USER);
-			memset(nestedmess, 0, 5);
-			memcpy(nestedmess, "asdf",5);
 			returnvalues->remaining = 5;
-			memcpy(returnvalues->value, nestedmess, 5);
+			strcpy(returnvalues->value, nestedmess);
+
 			printk(KERN_INFO "assigned value to struct(remaining). %d\n", returnvalues->remaining);
 
 			printk(KERN_INFO "assigned value to struct(char data) %s\n", returnvalues->value);
 
-			msg_size = sizeof(returnvalues);
+			//******send code******
+			msg_size = sizeof(struct returnstruct)+sizeof(char)*strlen(nestedmess)+1;
 			skb_out = nlmsg_new(msg_size, 0);
 
 			if (!skb_out) {
