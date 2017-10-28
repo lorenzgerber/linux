@@ -112,16 +112,19 @@ void delete_key(int key) {
 	}
 }
 
-void* backup(void){
+
+int backup_length(void){
 
 	int ret;
+	int length = 0;
 	struct rhashtable_iter iter;
 	struct hashed_object* data;
-	printk("we're in backup\n");
+	printk("we're in backup, lenght calc\n");
 
 	ret = rhashtable_walk_init(&ht, &iter, GFP_ATOMIC);
-	if (ret)
-		return NULL;
+	if (ret){
+		return -1;
+	}
 
 	ret = rhashtable_walk_start(&iter);
 	if (ret && ret != -EAGAIN)
@@ -129,14 +132,58 @@ void* backup(void){
 
 	while ((data = rhashtable_walk_next(&iter))) {
 		// Here we have to take care of the data
-		printk("%s\n", data->value);
-
+		char str[10];
+		sprintf(str, "%d", data->key);
+		length += strlen(str)+1;
+		length += strlen(data->value)+1;
 	}
+
 err:
 	rhashtable_walk_stop(&iter);
 	rhashtable_walk_exit(&iter);
 
-	return NULL;
+	return length;
+
+
+}
+
+char* backup_msg(int length){
+
+	int ret;
+	char *msg;
+	int write_pos = 0;
+	struct rhashtable_iter iter;
+	struct hashed_object* data;
+	printk("we're in backup msg generator\n");
+	msg = kmalloc(sizeof(char)*length, GFP_KERNEL);
+	memset(msg, 0, length);
+
+	ret = rhashtable_walk_init(&ht, &iter, GFP_ATOMIC);
+	if (ret){
+		return NULL;
+	}
+
+	ret = rhashtable_walk_start(&iter);
+	if (ret && ret != -EAGAIN)
+		goto err;
+
+	while ((data = rhashtable_walk_next(&iter))) {
+		// Here we have to take care of the data
+		char str[10];
+		sprintf(str, "%d", data->key);
+		memcpy(msg+write_pos, str, strlen(str));
+		write_pos += strlen(str)+1;
+		memcpy(msg+write_pos, data->value, strlen(data->value));
+		write_pos += strlen(data->value)+1;
+
+		printk("%s strlength id of: %d\n", data->value, strlen(str));
+	}
+
+err:
+	rhashtable_walk_stop(&iter);
+	rhashtable_walk_exit(&iter);
+
+	return msg;
 
 }
 
@@ -161,6 +208,7 @@ static void keystore(struct sk_buff *skb) {
 	int msg_size;
 	int operation;
 	int res;
+	int i = 0;
 
 	// creating data containers
 	char *msg;
@@ -201,14 +249,18 @@ static void keystore(struct sk_buff *skb) {
 			strcpy(hash_data->value, ((struct keyvalue*) nlmsg_data(nlh))->value);
 			insert(hash_data);
 			msg = kmalloc(sizeof(char)*15, GFP_KERNEL);
-			strcpy(msg, "insert success");
+			msg_size = 15;
+			strcpy(msg, "INSERT success");
 			break;
 		case GET:
 			memcpy(hash_data, lookup(((struct keyvalue*) nlmsg_data(nlh))->key),
 					sizeof(struct hashed_object));
 			printk(KERN_INFO "lookup value from rhastable:%s\n", hash_data->value);
-			msg = kmalloc(sizeof(char)*(strlen(hash_data->value)+1), GFP_KERNEL);
+			msg = kmalloc(sizeof(char)*(2*(strlen(hash_data->value)+1)), GFP_KERNEL);
+			memset(msg,0, sizeof(char)*(2*(strlen(hash_data->value)+1)) );
 			strcpy(msg, hash_data->value);
+			strcpy(msg+(strlen(hash_data->value)+1),hash_data->value);
+			msg_size = strlen(msg)+1;
 			break;
 		case DELETE:
 			printk(KERN_INFO "Removing %s with key %d\n",
@@ -218,6 +270,7 @@ static void keystore(struct sk_buff *skb) {
 			strcpy(hash_data->value, ((struct keyvalue*) nlmsg_data(nlh))->value);
 			delete(hash_data);
 			msg = kmalloc(sizeof(char)*15, GFP_KERNEL);
+			msg_size = 15;
 			strcpy(msg, "DELETE success");
 			break;
 		case DELETE_KEY:
@@ -225,10 +278,16 @@ static void keystore(struct sk_buff *skb) {
 						((struct keyvalue*) nlmsg_data(nlh))->key );
 			delete_key(((struct keyvalue*) nlmsg_data(nlh))->key);
 			msg = kmalloc(sizeof(char)*19, GFP_KERNEL);
+			msg_size = 19;
 			strcpy(msg, "DELETE_KEY success");
 			break;
 		case BACKUP:
-			backup();
+			printk(KERN_INFO "Backing up Key-value store\n");
+			msg_size = backup_length();
+			msg = backup_msg(msg_size);
+			for(i = 0; i <= msg_size; i++){
+				printk("%d",((char*)msg)[i] );
+			}
 
 			break;
 		default:
@@ -240,7 +299,7 @@ static void keystore(struct sk_buff *skb) {
 	/*
 	 * Return data to Userspace
 	 */
-	msg_size=strlen(msg)+1;
+	//msg_size=strlen(msg)+1;
 	skb_out = nlmsg_new(msg_size,0);
 
 	if(!skb_out){
@@ -250,12 +309,11 @@ static void keystore(struct sk_buff *skb) {
 
 	nlh=nlmsg_put(skb_out,0,0,NLMSG_DONE,msg_size,0);
 	NETLINK_CB(skb_out).dst_group = 0; /* not in mcast group */
-	strncpy(nlmsg_data(nlh),msg,msg_size);
-
+	memcpy(nlmsg_data(nlh),msg,msg_size);
 	res=nlmsg_unicast(nl_sk,skb_out,pid);
-
 	if(res<0)
 	printk(KERN_INFO "Error while sending back to user\n");
+
 }
 
 static int __init os_keystore_init(void) {
