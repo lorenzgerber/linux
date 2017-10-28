@@ -154,7 +154,6 @@ char* backup_msg(int length){
 	int write_pos = 0;
 	struct rhashtable_iter iter;
 	struct hashed_object* data;
-	printk("we're in backup msg generator\n");
 	msg = kmalloc(sizeof(char)*length, GFP_KERNEL);
 	memset(msg, 0, length);
 
@@ -175,8 +174,6 @@ char* backup_msg(int length){
 		write_pos += strlen(str)+1;
 		memcpy(msg+write_pos, data->value, strlen(data->value));
 		write_pos += strlen(data->value)+1;
-
-		printk("%s strlength id of: %d\n", data->value, strlen(str));
 	}
 
 err:
