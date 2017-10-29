@@ -205,7 +205,6 @@ static void keystore(struct sk_buff *skb) {
 	int msg_size;
 	int operation;
 	int res;
-	int i = 0;
 
 	// creating data containers
 	char *msg;
@@ -295,11 +294,13 @@ static void keystore(struct sk_buff *skb) {
 		case BACKUP:
 			printk(KERN_INFO "Backing up Key-value store\n");
 			msg_size = backup_length();
-			msg = backup_msg(msg_size);
-			for(i = 0; i <= msg_size; i++){
-				printk("%d",((char*)msg)[i] );
+			if(msg_size == 0){
+				msg = kmalloc(sizeof(char)*15, GFP_KERNEL);
+				msg_size = 29;
+				strcpy(msg, "Key value storage is empty!\n");
+			} else {
+				msg = backup_msg(msg_size);
 			}
-
 			break;
 		default:
 			break;
