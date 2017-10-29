@@ -295,9 +295,7 @@ static void keystore(struct sk_buff *skb) {
 			printk(KERN_INFO "Backing up Key-value store\n");
 			msg_size = backup_length();
 			if(msg_size == 0){
-				msg = kmalloc(sizeof(char)*15, GFP_KERNEL);
-				msg_size = 29;
-				strcpy(msg, "Key value storage is empty!\n");
+				msg_size = 0;
 			} else {
 				msg = backup_msg(msg_size);
 			}
