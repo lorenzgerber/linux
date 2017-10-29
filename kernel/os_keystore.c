@@ -239,25 +239,39 @@ static void keystore(struct sk_buff *skb) {
 	 */
 	switch(operation) {
 		case INSERT:
-			printk(KERN_INFO "Inserting %s with key %d\n",
-					((struct keyvalue*) nlmsg_data(nlh))->value,
-					((struct keyvalue*) nlmsg_data(nlh))->key );
-			hash_data->key = ((struct keyvalue*) nlmsg_data(nlh))->key;
-			strcpy(hash_data->value, ((struct keyvalue*) nlmsg_data(nlh))->value);
-			insert(hash_data);
-			msg = kmalloc(sizeof(char)*15, GFP_KERNEL);
-			msg_size = 15;
-			strcpy(msg, "INSERT success");
+			if(lookup(((struct keyvalue*) nlmsg_data(nlh))->key)!= NULL){
+				printk("Key value pair is already in store!\n");
+				msg = kmalloc(sizeof(char)*15, GFP_KERNEL);
+				msg_size = 36;
+				strcpy(msg, "Key-value pair is already in store!");
+			} else {
+				printk(KERN_INFO "Inserting %s with key %d\n",
+						((struct keyvalue*) nlmsg_data(nlh))->value,
+						((struct keyvalue*) nlmsg_data(nlh))->key );
+				hash_data->key = ((struct keyvalue*) nlmsg_data(nlh))->key;
+				strcpy(hash_data->value, ((struct keyvalue*) nlmsg_data(nlh))->value);
+				insert(hash_data);
+				msg = kmalloc(sizeof(char)*15, GFP_KERNEL);
+				msg_size = 15;
+				strcpy(msg, "INSERT success");
+			}
 			break;
 		case GET:
-			memcpy(hash_data, lookup(((struct keyvalue*) nlmsg_data(nlh))->key),
-					sizeof(struct hashed_object));
-			printk(KERN_INFO "lookup value from rhastable:%s\n", hash_data->value);
-			msg = kmalloc(sizeof(char)*(2*(strlen(hash_data->value)+1)), GFP_KERNEL);
-			memset(msg,0, sizeof(char)*(2*(strlen(hash_data->value)+1)) );
-			strcpy(msg, hash_data->value);
-			strcpy(msg+(strlen(hash_data->value)+1),hash_data->value);
-			msg_size = strlen(msg)+1;
+			if(lookup(((struct keyvalue*) nlmsg_data(nlh))->key)!= NULL){
+				memcpy(hash_data, lookup(((struct keyvalue*) nlmsg_data(nlh))->key),
+						sizeof(struct hashed_object));
+				printk(KERN_INFO "lookup value from rhastable:%s\n", hash_data->value);
+				msg = kmalloc(sizeof(char)*(2*(strlen(hash_data->value)+1)), GFP_KERNEL);
+				memset(msg,0, sizeof(char)*(2*(strlen(hash_data->value)+1)) );
+				strcpy(msg, hash_data->value);
+				strcpy(msg+(strlen(hash_data->value)+1),hash_data->value);
+				msg_size = strlen(msg)+1;
+			} else {
+				printk("key not found!\n");
+				msg = kmalloc(sizeof(char)*15, GFP_KERNEL);
+				msg_size = 26;
+				strcpy(msg, "Key-value pair not found!");
+			}
 			break;
 		case DELETE:
 			printk(KERN_INFO "Removing %s with key %d\n",
