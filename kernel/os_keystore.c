@@ -267,7 +267,7 @@ static void keystore(struct sk_buff *skb) {
 				msg_size = strlen(msg)+1;
 			} else {
 				printk("key not found!\n");
-				msg = kmalloc(sizeof(char)*15, GFP_KERNEL);
+				msg = kmalloc(sizeof(char)*26, GFP_KERNEL);
 				msg_size = 26;
 				strcpy(msg, "Key-value pair not found!");
 			}
@@ -295,7 +295,7 @@ static void keystore(struct sk_buff *skb) {
 			printk(KERN_INFO "Backing up Key-value store\n");
 			msg_size = backup_length();
 			if(msg_size == 0){
-				msg_size = 0;
+				msg = NULL;
 			} else {
 				msg = backup_msg(msg_size);
 			}
@@ -319,7 +319,9 @@ static void keystore(struct sk_buff *skb) {
 
 	nlh=nlmsg_put(skb_out,0,0,NLMSG_DONE,msg_size,0);
 	NETLINK_CB(skb_out).dst_group = 0; /* not in mcast group */
-	memcpy(nlmsg_data(nlh),msg,msg_size);
+	if(msg_size!=0){
+		memcpy(nlmsg_data(nlh),msg,msg_size);
+	}
 	res=nlmsg_unicast(nl_sk,skb_out,pid);
 	if(msg!=NULL){
 		kfree(msg);
