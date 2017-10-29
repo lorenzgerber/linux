@@ -240,7 +240,7 @@ static void keystore(struct sk_buff *skb) {
 		case INSERT:
 			if(lookup(((struct keyvalue*) nlmsg_data(nlh))->key)!= NULL){
 				printk("Key value pair is already in store!\n");
-				msg = kmalloc(sizeof(char)*15, GFP_KERNEL);
+				msg = kmalloc(sizeof(char)*36, GFP_KERNEL);
 				msg_size = 36;
 				strcpy(msg, "Key-value pair is already in store!");
 			} else {
@@ -321,6 +321,9 @@ static void keystore(struct sk_buff *skb) {
 	NETLINK_CB(skb_out).dst_group = 0; /* not in mcast group */
 	memcpy(nlmsg_data(nlh),msg,msg_size);
 	res=nlmsg_unicast(nl_sk,skb_out,pid);
+	if(msg!=NULL){
+		kfree(msg);
+	}
 	if(res<0)
 	printk(KERN_INFO "Error while sending back to user\n");
 
